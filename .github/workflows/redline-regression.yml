@@ -1,0 +1,50 @@
+# OOXML 红线引擎回归测试 — GitHub Actions 工作流
+#
+# 部署说明：本文件已置于仓库根 .github/workflows/（商业合同技能 commercial-contract
+#   直接作为仓库根内容），因此 GitHub 可直接识别，SKILL_DIR 设为 "."。
+#   若日后改为「技能作为仓库子目录」（如 <repo>/commercial-contract/），需将本文件
+#   移动到 <repo-root>/.github/workflows/，并把下方 SKILL_DIR 改回 "commercial-contract"，
+#   同时恢复 on.push/pull_request 的 paths 前缀 "commercial-contract/"。
+#
+# 触发：scripts/** 或 references/** 变更时自动跑；也可在 Actions 页手动 workflow_dispatch。
+# 退出码：test_redline_pipeline.py 全通过=0，任意断言失败=非0 → 本步骤失败、阻断合并。
+
+name: OOXML Redline Engine Regression
+
+on:
+  push:
+    paths:
+      - 'scripts/**'
+      - 'references/**'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'references/**'
+  workflow_dispatch:
+
+env:
+  SKILL_DIR: .   # 技能直接作为仓库根内容
+
+jobs:
+  redline-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Create venv and install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install python-docx lxml
+
+      - name: Run regression test
+        run: |
+          . .venv/bin/activate
+          python "${SKILL_DIR}/scripts/test_redline_pipeline.py" --python "$(pwd)/.venv/bin/python"
