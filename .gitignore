@@ -1,6 +1,7 @@
 # Python 缓存
 __pycache__/
 *.pyc
+.venv/
 
 # 本地自动化/记忆元数据（不入库）
 .workbuddy/
