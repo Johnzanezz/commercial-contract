@@ -287,13 +287,22 @@ def main():
     ap.add_argument("--source", required=True, help="源合同 docx")
     ap.add_argument("--ops", required=True, help="operations.json")
     ap.add_argument("--output", required=True, help="输出红线 docx")
-    ap.add_argument("--author", default=None, help="修订作者（默认取 ops.author 或 法大大iTerms）")
+    ap.add_argument(
+        "--author", default=None,
+        help="[保留参数] 修订/批注 author 红线固定为「%s」，传入非该值仅告警并忽略" % REQUIRED_AUTHOR)
     args = ap.parse_args()
 
     with open(args.ops, "r", encoding="utf-8") as f:
         ops = json.load(f)
 
-    author = args.author or ops.get("author") or REQUIRED_AUTHOR
+    # 作者红线：无论输入如何，修订/批注 author 恒为 REQUIRED_AUTHOR（执业身份红线）。
+    # 若 ops.author / --author 请求了异值，仅告警并忽略，从源头杜绝红线被突破。
+    requested = args.author or ops.get("author")
+    if requested and requested != REQUIRED_AUTHOR:
+        sys.stderr.write(
+            "警告：修订 author 红线固定为「%s」，已忽略请求作者「%s」\n"
+            % (REQUIRED_AUTHOR, requested))
+    author = REQUIRED_AUTHOR
     date = ops.get("date") or now_iso()
 
     doc = Document(args.source)

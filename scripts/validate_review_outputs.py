@@ -140,9 +140,6 @@ def main():
     comments_root, comment_texts, comments_author_ok = gather_comments(doc)
     if not comments_author_ok:
         author_violation = True
-    if comment_refs and comments_root is None:
-        # 正文引用了批注但未找到 comments.xml
-        author_violation = author_violation  # 结构问题，走 needs_retry
 
     # 逐条操作落地校验
     findings = []
@@ -171,19 +168,21 @@ def main():
             "authors_found": sorted(a for a in authors if a is not None),
         })
 
-    # 结构校验：6 字段（本脚本负责产出，若因异常无法产出则视为 needs_retry）
-    vr_structure_ok = True
-    for fld in REQUIRED_VR_FIELDS:
-        # operations_summary 由本脚本生成；disclaimer_checked 由参数决定；其余固定产出
-        if fld not in ("operations_summary", "disclaimer_checked", "policy_status",
-                       "schema_version", "expert", "generated_at"):
-            vr_structure_ok = False
+    # 结构校验：正文引用批注但未找到 comments.xml → 真实结构缺失，归为 needs_retry
+    if comment_refs and comments_root is None:
+        all_landed = False
+        findings.append({
+            "type": "missing_comments_part", "severity": "error",
+            "message": "正文存在 w:commentReference 但未找到 comments.xml（批注结构缺失）",
+        })
 
     # 判定 policy_status 与退出码
+    # verification_record 的六个字段由本脚本固定产出，结构恒满足；
+    # 若日后改为动态产出，应在此对 verification_record 实际字段做断言（替代原恒真死代码）。
     if author_violation:
         policy_status = "policy_blocked"
         exit_code = 2
-    elif (not all_landed) or (not vr_structure_ok) or (comment_refs and comments_root is None):
+    elif not all_landed:
         policy_status = "needs_retry"
         exit_code = 1
     else:

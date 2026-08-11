@@ -52,6 +52,23 @@ if ! can_import "$PY"; then
 fi
 
 echo "[run_ci] 解释器: $PY"
+
+# ---- 单元测试阶段（函数级，先于端到端回归；失败则快速阻断）----
+UT_DIR="$SCRIPT_DIR/tests"
+RUN_UT_DIR="$UT_DIR"
+if command -v cygpath >/dev/null 2>&1 && [[ "${OSTYPE:-}" == msys* || "${OSTYPE:-}" == cygwin* ]]; then
+  RUN_UT_DIR="$(cygpath -w "$UT_DIR")"
+fi
+echo "[run_ci] 运行单元测试: discover $UT_DIR"
+"$PY" -m unittest discover -s "$RUN_UT_DIR" -p "test_*.py" -v
+ut_rc=$?
+if [ "$ut_rc" -ne 0 ]; then
+  echo "[run_ci] 单元测试失败，退出码: $ut_rc"
+  exit "$ut_rc"
+fi
+echo "[run_ci] 单元测试通过"
+
+# ---- 端到端回归阶段 ----
 echo "[run_ci] 运行: $TEST"
 
 # MSYS/Cygwin 下，python.exe 是原生 Windows 程序：作为命令执行时由 bash 自动翻译路径，
